@@ -1,21 +1,15 @@
 package com.example.simplecolorselector
 
-import android.content.Context
-import android.os.Build
 import android.os.Bundle
-import android.view.View
-import android.view.WindowInsets
-import android.view.WindowInsetsController
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.sharp.Refresh
@@ -23,18 +17,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.simplecolorselector.ui.theme.SimpleColorSelectorTheme
 import java.lang.NumberFormatException
-import java.util.*
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,10 +51,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun Main(){
     val baseColor = Color.White
-    val baseOppositeColor = Color.Black
-    var selectedColor by remember { mutableStateOf("ffffff") }
-    var resultColor by remember { mutableStateOf(baseColor) }
-    var oppositeColor by remember { mutableStateOf(baseOppositeColor)}
+    var selectedColor by remember{ mutableStateOf("ffffff") }
+    var resultColor by remember{ mutableStateOf(baseColor) }
+    var oppositeColor = if(resultColor.luminance()>0.5) Color.Black else Color.White
     Scaffold(
         topBar = {
             TopAppBar(
@@ -79,20 +76,28 @@ fun Main(){
             onRefreshButtonClick = {
                 selectedColor = ""
                 resultColor = baseColor
-                oppositeColor = baseOppositeColor
             },
             onSetColorButtonClick = {
                 try {
-                    var data = Integer.parseInt(selectedColor,16)
-                    resultColor = Color(0xFF000000+data)
-                    oppositeColor = Color(0xFFFFFFFF-data)
+                    if (selectedColor.length == 6){
+                        var data = Integer.parseInt(selectedColor,16)
+                        resultColor = Color(0xFF000000+data)
+                    }else{
+                        selectedColor = ""
+                    }
                 }catch (e:NumberFormatException){
                     selectedColor = ""
                 }
+            },
+            onGetSuggestColor = {
+                selectedColor = it
+                var data = Integer.parseInt(selectedColor,16)
+                resultColor = Color(0xFF000000+data)
             }
         )
     }
 }
+
 
 @Composable
 fun Content(
@@ -101,7 +106,8 @@ fun Content(
     oppositeColor: Color,
     onSelectedColorChange: (String) -> Unit,
     onRefreshButtonClick: () -> Unit,
-    onSetColorButtonClick: () -> Unit
+    onSetColorButtonClick: () -> Unit,
+    onGetSuggestColor: (String) -> Unit
 ){
     var listColor:List<String> = listOf("ffea00","ffc400","00e676","2979ff","f50057","d500f9","651fff","c6ff00")
     Column(
@@ -137,9 +143,10 @@ fun Content(
                     SuggestColorHolder(
                         listColor,
                         modifier = Modifier
-                            .padding(start = 24.dp,top = 16.dp)
+                            .padding(start = 24.dp, top = 16.dp, end = 24.dp)
                             .height(42.dp)
-                            .fillMaxWidth()
+                            .fillMaxWidth(),
+                        onGetSuggestColor = onGetSuggestColor
                     )
                 }
                 Spacer(modifier = Modifier.height(20.dp))
@@ -152,7 +159,6 @@ fun Content(
                     .weight(3f),
                 shape = RoundedCornerShape(12.dp),
                 elevation = 4.dp,
-//                backgroundColor = Color(0xFF000000+Integer.parseInt("00FFFF",16))
                 backgroundColor = resultColor
             ){
                 Box(
@@ -196,8 +202,7 @@ fun MyTextButton(
     enabled :Boolean=true,
     border :BorderStroke? = null,
     text: String,
-    colors: ButtonColors,
-
+    colors: ButtonColors
     ){
     TextButton(
         modifier = modifier,
@@ -211,6 +216,7 @@ fun MyTextButton(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun AddColorInput(
     modifier: Modifier,
@@ -230,17 +236,27 @@ fun AddColorInput(
                 .weight(3f)
         ){
             Text(
+                modifier = Modifier.padding(bottom = 10.dp),
                 text = "#",
                 style = MaterialTheme.typography.h6
             )
+            val keyboardController = LocalSoftwareKeyboardController.current
             TextField(
                 value = selectedColor,
                 onValueChange = onSelectedColorChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f),
+                textStyle = MaterialTheme.typography.subtitle1,
                 maxLines = 1,
+                keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    onSetColorButtonClick
+                    keyboardController?.hide()
+                }),
                 colors = TextFieldDefaults.textFieldColors(
                     backgroundColor = Color.Transparent,
-                    cursorColor = resultColor
+                    cursorColor = resultColor,
+                    focusedIndicatorColor = resultColor.copy(alpha = ContentAlpha.high)
                 ),
             )
         }
@@ -250,7 +266,6 @@ fun AddColorInput(
                 .padding(start = 24.dp),
             onClickHere = onSetColorButtonClick,
             enabled = selectedColor.isNotBlank(),
-            border = BorderStroke(1.dp,oppositeColor),
             text = "提交",
             colors = ButtonDefaults.buttonColors(
                 backgroundColor = resultColor,
@@ -264,20 +279,33 @@ fun AddColorInput(
 @Composable
 fun SuggestColorHolder(
     colors:List<String>,
-    modifier: Modifier
+    modifier: Modifier,
+    onGetSuggestColor: (String) -> Unit
 ){
-    LazyRow(
-        modifier = modifier
-    ) {
-        items(colors){color ->
-            MyTextButton(
-                modifier = Modifier.padding(start = 12.dp),
-                onClickHere = { /*TODO*/ },
-                text = "#$color",
-                colors = ButtonDefaults.buttonColors(
-                    backgroundColor = Color(0xFF000000+Integer.parseInt(color,16))
-                )
+    var isCollapsed by remember { mutableStateOf(false) }
+    Row(modifier = modifier) {
+        MyTextButton(
+            modifier = Modifier,
+            onClickHere = { isCollapsed = !isCollapsed },
+            text = if(isCollapsed)"展开推荐颜色 》" else "折叠",
+            border = BorderStroke(1.dp,Color.LightGray),
+            colors = ButtonDefaults.buttonColors(
+                backgroundColor = Color.White
             )
+        )
+        if(!isCollapsed){
+            LazyRow(Modifier.padding(start = 10.dp)){
+                items(colors){color ->
+                    MyTextButton(
+                        modifier = Modifier.padding(start = 6.dp),
+                        onClickHere = { onGetSuggestColor(color) },
+                        text = "#$color",
+                        colors = ButtonDefaults.buttonColors(
+                            backgroundColor = Color(0xFF000000+Integer.parseInt(color,16))
+                        )
+                    )
+                }
+            }
         }
     }
 }
