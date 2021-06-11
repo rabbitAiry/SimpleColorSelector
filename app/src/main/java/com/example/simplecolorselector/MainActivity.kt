@@ -17,18 +17,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.simplecolorselector.ui.theme.SimpleColorSelectorTheme
@@ -53,7 +50,7 @@ fun Main(){
     val baseColor = Color.White
     var selectedColor by remember{ mutableStateOf("ffffff") }
     var resultColor by remember{ mutableStateOf(baseColor) }
-    var oppositeColor = if(resultColor.luminance()>0.5) Color.Black else Color.White
+    val oppositeColor = if(resultColor.luminance()>0.5) Color.Black else Color.White
     Scaffold(
         topBar = {
             TopAppBar(
@@ -80,7 +77,7 @@ fun Main(){
             onSetColorButtonClick = {
                 try {
                     if (selectedColor.length == 6){
-                        var data = Integer.parseInt(selectedColor,16)
+                        val data = Integer.parseInt(selectedColor,16)
                         resultColor = Color(0xFF000000+data)
                     }else{
                         selectedColor = ""
@@ -91,7 +88,7 @@ fun Main(){
             },
             onGetSuggestColor = {
                 selectedColor = it
-                var data = Integer.parseInt(selectedColor,16)
+                val data = Integer.parseInt(selectedColor,16)
                 resultColor = Color(0xFF000000+data)
             }
         )
@@ -109,7 +106,7 @@ fun Content(
     onSetColorButtonClick: () -> Unit,
     onGetSuggestColor: (String) -> Unit
 ){
-    var listColor:List<String> = listOf("ffea00","ffc400","00e676","2979ff","f50057","d500f9","651fff","c6ff00")
+    val listColor:List<String> = listOf("ffea00","ffc400","00e676","2979ff","f50057","d500f9","651fff","c6ff00")
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -121,7 +118,6 @@ fun Content(
                     .weight(4f)
                     .fillMaxWidth()
             ) {
-                var name by remember { mutableStateOf("")}
                 Text(text = "输入十六进制颜色",
                     modifier = Modifier.padding(start = 24.dp,top = 36.dp,end = 12.dp,bottom = 2.dp),
                     fontWeight = FontWeight.Bold,
